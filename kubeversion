@@ -10,18 +10,19 @@ usage() {
 USAGE:
   kubeversion              : list kubectl version
   kubeversion <VERSION>    : switch to <VERSION> version if exist
-  kubeversion -i <VERSION> : install specific kubectl version
+  kubeversion -i <VERSION> : install a specific kubectl version
+  kubeversion -d <VERSION> : remove a specific kubectl version
 
   kubeversion -h, --help   : show help
 EOF
 }
 
 list_versions() {
-  echo -e "Available version : \n$(ls /usr/local/bin/kubectl_* |sed -n -e 's/.*kubectl_\(v.*\).*/\1/p')"
+  echo -e "Available version : \n$(ls /usr/local/bin | grep kubectl_* |sed -n -e 's/.*kubectl_\(v.*\).*/\1/p')"
 }
 
 current_version() {
-  echo -e "Current version : \n$(ls -l /usr/local/bin/kubectl |sed -n -e 's/.*kubectl_\(v.*\).*/\1/p')"
+  echo -e "Current version : \n$(ls -l /usr/local/bin | grep -w kubectl |sed -n -e 's/.*kubectl_\(v.*\).*/\1/p')"
 }
 
 set_version() {
@@ -55,6 +56,19 @@ install_version() {
   $(ln -sf /usr/local/bin/kubectl_${1} /usr/local/bin/kubectl)
 }
 
+remove_version() {
+  if [[ -z $(ls /usr/local/bin | grep kubectl_${1}) ]]; then
+    echo "error: this version is not installed"
+    exit 1
+  fi
+  if [[ -z $(ls /usr/local/bin | grep -w kubectl | grep ${1}) ]]; then
+    echo "error: it's the current version of kubectl, change before delete it : kubeversion <VERSION>"
+  else
+    $(rm -rf /usr/local/bin/kubectl_${1})
+    echo "version deleted"
+  fi
+}
+
 main() {
   if [[ "$#" -eq 0 ]]; then
     current_version
@@ -67,6 +81,14 @@ main() {
     else
       install_version "${2}"
     fi
+  elif [[ "${1}" == "-d" ]]; then
+    if [[ "$#" -lt 2 ]]; then
+      echo "error: missing kubectl version" >&2
+      usage
+      exit 1
+    else
+      remove_version "${2}"
+    fi 
   elif [[ "$#" -eq 1 ]]; then
     if [[ "${1}" == '-h' || "${1}" == '--help' ]]; then
       usage
