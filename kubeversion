@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+
+[[ -n $DEBUG ]] && set -x
+
+set -eou pipefail
+IFS=$'\n\t'
+
+usage() {
+  cat <<"EOF"
+USAGE:
+  kubeversion              : list kubectl version
+  kubeversion <VERSION>    : switch to <VERSION> version if exist
+  kubeversion -i <VERSION> : install specific kubectl version
+
+  kubeversion -h, --help   : show help
+EOF
+}
+
+list_versions() {
+  echo -e "Available version : \n$(ls /usr/local/bin/kubectl_* |sed -n -e 's/.*kubectl_\(v.*\).*/\1/p')"
+}
+
+current_version() {
+  echo -e "Current version : \n$(ls -l /usr/local/bin/kubectl |sed -n -e 's/.*kubectl_\(v.*\).*/\1/p')"
+}
+
+set_version() {
+  if [[ -z $(ls /usr/local/bin | grep kubectl_${1}) ]]; then
+    echo "error: this version does not exist"
+    exit 1
+  fi
+  $(ln -sf /usr/local/bin/kubectl_${1} /usr/local/bin/kubectl)
+  echo -e "switch to ${1}"
+}
+
+install_version() {
+  if [[ -z $(curl -s https://api.github.com/repos/kubernetes/kubernetes/git/refs/tags | sed -n -e 's/.*refs\/tags\/\(v.*\)".*/\1/p' | sort | uniq | grep "${1}") ]]; then
+    echo "error: this version does not exist"
+    exit 1
+  fi
+  if [[ -z $(ls /usr/local/bin | grep kubectl_${1}) ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+      echo "Download kubectl for macos"
+      $(curl -s https://storage.googleapis.com/kubernetes-release/release/${1}/bin/darwin/amd64/kubectl -o /usr/local/bin/kubectl_${1})
+      $(chmod +x /usr/local/bin/kubectl_${1})
+    elif [[ "$(uname)" == "Linux" ]]; then
+      echo "Download kubectl for linux"
+      $(curl -s https://storage.googleapis.com/kubernetes-release/release/${1}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl_${1})
+      $(chmod +x /usr/local/bin/kubectl_${1})
+    else
+      echo "unkwown os"
+      exit 1
+    fi
+  fi
+  $(ln -sf /usr/local/bin/kubectl_${1} /usr/local/bin/kubectl)
+}
+
+main() {
+  if [[ "$#" -eq 0 ]]; then
+    current_version
+    list_versions
+  elif [[ "${1}" == "-i" ]]; then
+    if [[ "$#" -lt 2 ]]; then
+      echo "error: missing kubectl version" >&2
+      usage
+      exit 1
+    else
+      install_version "${2}"
+    fi
+  elif [[ "$#" -eq 1 ]]; then
+    if [[ "${1}" == '-h' || "${1}" == '--help' ]]; then
+      usage
+    elif [[ "${1}" =~ ^v[1-9]+.[0-9]+.[0-9]+ ]]; then
+      set_version "${1}"
+    else
+      usage
+    fi
+  else
+    usage
+  fi
+}
+
+main "$@"
