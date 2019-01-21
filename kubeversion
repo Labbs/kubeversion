@@ -72,7 +72,7 @@ remove_version() {
 
 main() {
   if [[ ! -d $DEFAULT_PATH ]]; then
-    mkdir -p $DEFAUTL_PATH
+    mkdir -p $DEFAULT_PATH
   fi
   if [[ $(echo $PATH | grep -c $DEFAULT_PATH) -ne 1 ]]; then
     echo "$DEFAULT_PATH is not in PATH env in your env"
