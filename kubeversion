@@ -4,6 +4,7 @@
 
 set -eou pipefail
 IFS=$'\n\t'
+DEFAULT_PATH=~/.kubeversion
 
 usage() {
   cat <<"EOF"
@@ -18,19 +19,19 @@ EOF
 }
 
 list_versions() {
-  echo -e "Available version : \n$(ls /usr/local/bin | grep kubectl_* |sed -n -e 's/.*kubectl_\(v.*\).*/\1/p')"
+  echo -e "Available version : \n$(ls $DEFAULT_PATH | grep _kubectl_ |sed -n -e 's/.*_kubectl_\(v.*\).*/\1/p')"
 }
 
 current_version() {
-  echo -e "Current version : \n$(ls -l /usr/local/bin | grep -w kubectl |sed -n -e 's/.*kubectl_\(v.*\).*/\1/p')"
+  echo -e "Current version : \n$(ls -l $DEFAULT_PATH | grep -w kubectl |sed -n -e 's/.*_kubectl_\(v.*\).*/\1/p')"
 }
 
 set_version() {
-  if [[ -z $(ls /usr/local/bin | grep kubectl_${1}) ]]; then
+  if [[ -z $(ls $DEFAULT_PATH | grep _kubectl_${1}) ]]; then
     echo "error: this version does not exist"
     exit 1
   fi
-  $(ln -sf /usr/local/bin/kubectl_${1} /usr/local/bin/kubectl)
+  $(ln -sf $DEFAULT_PATH/_kubectl_${1} $DEFAULT_PATH/kubectl)
   echo -e "switch to ${1}"
 }
 
@@ -39,37 +40,44 @@ install_version() {
     echo "error: this version does not exist"
     exit 1
   fi
-  if [[ -z $(ls /usr/local/bin | grep kubectl_${1}) ]]; then
+  if [[ -z $(ls $DEFAULT_PATH | grep _kubectl_${1}) ]]; then
     if [[ "$(uname)" == "Darwin" ]]; then
       echo "Download kubectl for macos"
-      $(curl -s https://storage.googleapis.com/kubernetes-release/release/${1}/bin/darwin/amd64/kubectl -o /usr/local/bin/kubectl_${1})
-      $(chmod +x /usr/local/bin/kubectl_${1})
+      $(curl -s https://storage.googleapis.com/kubernetes-release/release/${1}/bin/darwin/amd64/kubectl -o $DEFAULT_PATH/_kubectl_${1})
+      $(chmod +x $DEFAULT_PATH/_kubectl_${1})
     elif [[ "$(uname)" == "Linux" ]]; then
       echo "Download kubectl for linux"
-      $(curl -s https://storage.googleapis.com/kubernetes-release/release/${1}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl_${1})
-      $(chmod +x /usr/local/bin/kubectl_${1})
+      $(curl -s https://storage.googleapis.com/kubernetes-release/release/${1}/bin/linux/amd64/kubectl -o $DEFAULT_PATH/_kubectl_${1})
+      $(chmod +x $DEFAULT_PATH/_kubectl_${1})
     else
       echo "unkwown os"
       exit 1
     fi
   fi
-  $(ln -sf /usr/local/bin/kubectl_${1} /usr/local/bin/kubectl)
+  $(ln -sf $DEFAULT_PATH/_kubectl_${1} $DEFAULT_PATH/kubectl)
 }
 
 remove_version() {
-  if [[ -z $(ls /usr/local/bin | grep kubectl_${1}) ]]; then
+  if [[ -z $(ls $DEFAULT_PATH | grep _kubectl_${1}) ]]; then
     echo "error: this version is not installed"
     exit 1
   fi
-  if [[ -z $(ls /usr/local/bin | grep -w kubectl | grep ${1}) ]]; then
+  if [[ -z $(ls $DEFAULT_PATH | grep -w kubectl | grep ${1}) ]]; then
     echo "error: it's the current version of kubectl, change before delete it : kubeversion <VERSION>"
   else
-    $(rm -rf /usr/local/bin/kubectl_${1})
+    $(rm -rf $DEFAULT_PATH/_kubectl_${1})
     echo "version deleted"
   fi
 }
 
 main() {
+  if [[ ! -d $DEFAULT_PATH ]]; then
+    mkdir -p $DEFAUTL_PATH
+  fi
+  if [[ $(echo $PATH | grep -c $DEFAULT_PATH) -ne 1 ]]; then
+    echo "$DEFAULT_PATH is not in PATH env in your env"
+    exit 1
+  fi
   if [[ "$#" -eq 0 ]]; then
     current_version
     list_versions
